@@ -1,5 +1,5 @@
 <.header>
-  Post {@post.id}
+  Post <%= @post.id %>
   <:subtitle>This is a post record from your database.</:subtitle>
   <:actions>
     <.link href={~p"/posts/#{@post}/edit"}>
@@ -9,8 +9,37 @@
 </.header>
 
 <.list>
-  <:item title="Title">{@post.title}</:item>
-  <:item title="Body">{@post.body}</:item>
+  <:item title="Title"><%= @post.title %></:item>
+  <:item title="Body"><%= @post.body %></:item>
 </.list>
+
+<div class="mt-8">
+  <h3 class="text-lg font-semibold mb-4">Comments</h3>
+  
+  <%= if @post.comments != [] do %>
+    <div class="space-y-4 mb-6">
+      <%= for comment <- @post.comments do %>
+        <div class="border rounded p-4 bg-gray-50">
+          <p><%= comment.content %></p>
+          <small class="text-gray-500">
+            Posted on <%= Calendar.strftime(comment.inserted_at, "%B %d, %Y at %I:%M %p") %>
+          </small>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-gray-500 mb-6">No comments yet.</p>
+  <% end %>
+
+  <div class="border-t pt-6">
+    <h4 class="text-md font-medium mb-4">Add a Comment</h4>
+    <.simple_form :let={f} for={@changeset} action={~p"/posts/#{@post}/comments"}>
+      <.input field={f[:content]} type="textarea" label="Comment" rows="3" />
+      <:actions>
+        <.button>Add Comment</.button>
+      </:actions>
+    </.simple_form>
+  </div>
+</div>
 
 <.back navigate={~p"/posts"}>Back to posts</.back>

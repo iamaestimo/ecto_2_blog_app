@@ -28,7 +28,8 @@ defmodule BlogAppWeb.PostController do
 
   def show(conn, %{"id" => id}) do
     post = Posts.get_post!(id)
-    render(conn, :show, post: post)
+    changeset = Posts.change_comment(%BlogApp.Comments.Comment{})
+    render(conn, :show, post: post, changeset: changeset)
   end
 
   def edit(conn, %{"id" => id}) do
@@ -58,5 +59,18 @@ defmodule BlogAppWeb.PostController do
     conn
     |> put_flash(:info, "Post deleted successfully.")
     |> redirect(to: ~p"/posts")
+  end
+
+  def add_comment(conn, %{"post_id" => post_id, "comment" => comment_params}) do
+    post = Posts.get_post!(post_id)
+
+    case Posts.create_comment(post, comment_params) do
+      {:ok, _comment} ->
+        conn
+        |> put_flash(:info, "Comment added successfully.")
+        |> redirect(to: ~p"/posts/#{post}")
+      {:error, changeset} ->
+        render(conn, :show, post: post, changeset: changeset)
+    end
   end
 end
