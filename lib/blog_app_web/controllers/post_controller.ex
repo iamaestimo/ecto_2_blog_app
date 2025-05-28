@@ -4,6 +4,8 @@ defmodule BlogAppWeb.PostController do
   alias BlogApp.Posts
   alias BlogApp.Posts.Post
 
+  @spam_error "Spam detected!"
+
   def index(conn, _params) do
     posts = Posts.list_posts()
     render(conn, :index, posts: posts)
@@ -69,8 +71,47 @@ defmodule BlogAppWeb.PostController do
         conn
         |> put_flash(:info, "Comment added successfully.")
         |> redirect(to: ~p"/posts/#{post}")
-      {:error, changeset} ->
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        # Track spam attempts
+        if changeset.errors[:content] == {@spam_error, []} do
+          track_spam_attempt(conn, post_id, comment_params)
+        end
+
         render(conn, :show, post: post, changeset: changeset)
     end
+  end
+
+  defp track_spam_attempt(conn, post_id, comment_params) do
+    # Get user IP
+    ip =
+      conn.remote_ip
+      |> Tuple.to_list()
+      |> Enum.join(".")
+
+    # Prepare metadata
+    metadata = %{
+      content: comment_params["content"],
+      post_id: post_id,
+      user_ip: ip,
+      path: conn.request_path,
+      user_agent: get_req_header(conn, "user-agent") |> List.first(),
+      timestamp: DateTime.utc_now()
+    }
+
+    # Send custom error to AppSignal
+    Appsignal.send_error(
+      :spam_attempt,
+      "Spam comment detected",
+      "Content: #{comment_params["content"]}",
+      [
+        namespace: "spam_detection",
+        metadata: metadata,
+        tags: ["spam", "user_content"]
+      ]
+    )
+
+    # Also increment a counter metric
+    Appsignal.increment_counter("spam_attempts", 1, metadata)
   end
 end
